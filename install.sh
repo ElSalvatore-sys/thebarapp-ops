@@ -63,6 +63,7 @@ source bridge/.env
 # 4. Build frontend
 echo "→ Building React frontend..."
 cd dashboard
+rm -rf node_modules package-lock.json
 npm install --silent
 VITE_BRIDGE_TOKEN=$BRIDGE_TOKEN npm run build
 cd ..
