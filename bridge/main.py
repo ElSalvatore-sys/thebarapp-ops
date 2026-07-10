@@ -3,14 +3,13 @@ import subprocess
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request  # HTTPException kept for scraper-runs 503
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="TheBarApp Ops Bridge")
 
 HETZNER_BASE = "https://api.thebarapp.de"
-BRIDGE_TOKEN = os.environ.get("BRIDGE_TOKEN", "")
 SCRAPER_TOKEN = os.environ.get("SCRAPER_TOKEN", "")
 
 KNOWN_AGENTS = [
@@ -18,18 +17,6 @@ KNOWN_AGENTS = [
     "com.oasis.ordio-chrome-keeper",
     "com.oasis.ordio-hours-daily",
 ]
-
-# --------------------------------------------------------------------------- #
-# Auth                                                                         #
-# --------------------------------------------------------------------------- #
-
-def _check_token(request: Request) -> None:
-    if not BRIDGE_TOKEN:
-        return
-    token = request.headers.get("X-Bridge-Token", "")
-    if token != BRIDGE_TOKEN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
 
 # --------------------------------------------------------------------------- #
 # Helpers                                                                      #
@@ -88,20 +75,17 @@ async def bridge_health():
 
 
 @app.get("/api/backend-health")
-async def backend_health(request: Request):
-    _check_token(request)
+async def backend_health():
     return await _proxy_get("/api/v1/health")
 
 
 @app.get("/api/scraper-health")
-async def scraper_health(request: Request):
-    _check_token(request)
+async def scraper_health():
     return await _proxy_get("/api/v1/pp/scraper/health")
 
 
 @app.get("/api/scraper-runs")
-async def scraper_runs(request: Request):
-    _check_token(request)
+async def scraper_runs():
     if not SCRAPER_TOKEN:
         raise HTTPException(status_code=503, detail="SCRAPER_TOKEN not configured on bridge")
     return await _proxy_get(
@@ -111,9 +95,8 @@ async def scraper_runs(request: Request):
 
 
 @app.get("/api/studio")
-async def studio_health(request: Request):
+async def studio_health():
     """Read Studio-local state: Chrome processes + LaunchAgent states."""
-    _check_token(request)
     try:
         return {
             "chrome_9222_alive": _chrome_alive(9222),

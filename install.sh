@@ -38,7 +38,6 @@ if [ -f "bridge/.env" ]; then
   echo "→ Found existing bridge/.env — reusing (delete it to regenerate secrets)"
   source bridge/.env
 else
-  BRIDGE_TOKEN=$(openssl rand -hex 32)
   echo ""
   echo "→ Fetching SCRAPER_TOKEN from Hetzner..."
   SCRAPER_TOKEN=$(ssh hetzner "sudo docker exec thebarapp-backend-1 env" 2>/dev/null | grep SCRAPER_TOKEN | cut -d= -f2 || echo "")
@@ -51,7 +50,6 @@ else
   cat > bridge/.env << EOF
 BRIDGE_HOST=$TAILSCALE_IP
 BRIDGE_PORT=7777
-BRIDGE_TOKEN=$BRIDGE_TOKEN
 SCRAPER_TOKEN=$SCRAPER_TOKEN
 EOF
   chmod 600 bridge/.env
@@ -60,16 +58,9 @@ fi
 
 source bridge/.env
 
-# 4. Build frontend
-echo "→ Building React frontend..."
-cd dashboard
-rm -rf node_modules package-lock.json
-npm install --silent
-VITE_BRIDGE_TOKEN=$BRIDGE_TOKEN npm run build
-cd ..
-echo "→ Frontend built → dashboard/dist/"
+# frontend dist/ is pre-built and committed — no npm required
 
-# 5. Install LaunchAgent
+# 4. Install LaunchAgent
 PYTHON_PATH="$DIR/.venv/bin/python3"
 cat > "$PLIST" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -91,8 +82,6 @@ cat > "$PLIST" << EOF
         <string>$BRIDGE_HOST</string>
         <key>BRIDGE_PORT</key>
         <string>$BRIDGE_PORT</string>
-        <key>BRIDGE_TOKEN</key>
-        <string>$BRIDGE_TOKEN</string>
         <key>SCRAPER_TOKEN</key>
         <string>$SCRAPER_TOKEN</string>
     </dict>
@@ -106,13 +95,13 @@ cat > "$PLIST" << EOF
 </plist>
 EOF
 
-# 6. Load LaunchAgent (unload first if already running)
+# 5. Load LaunchAgent (unload first if already running)
 launchctl unload "$PLIST" 2>/dev/null || true
 launchctl load "$PLIST"
 echo "→ LaunchAgent loaded"
 sleep 2
 
-# 7. Verify
+# 6. Verify
 echo ""
 echo "=== Verifying bridge ==="
 HEALTH=$(curl -sf "http://$TAILSCALE_IP:7777/api/health" 2>/dev/null || echo "FAILED")
@@ -131,4 +120,3 @@ echo "Dashboard URL (any Tailscale device):"
 echo "  http://$TAILSCALE_IP:7777"
 echo ""
 echo "Bridge log: tail -f /tmp/ops-bridge.log"
-echo "Bridge token: $BRIDGE_TOKEN"
