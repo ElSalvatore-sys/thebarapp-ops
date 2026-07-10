@@ -12,7 +12,8 @@ echo ""
 # 1. Clone or update
 if [ -d "$DIR/.git" ]; then
   echo "→ Updating repo..."
-  git -C "$DIR" pull --ff-only
+  git -C "$DIR" fetch origin
+  git -C "$DIR" reset --hard origin/main
 else
   echo "→ Cloning repo..."
   git clone "$REPO" "$DIR"
