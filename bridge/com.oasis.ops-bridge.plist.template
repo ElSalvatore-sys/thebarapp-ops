@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.oasis.ops-bridge</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>REPLACE_WITH_VENV_PYTHON</string>
+        <string>REPLACE_WITH_REPO_PATH/bridge/main.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>REPLACE_WITH_REPO_PATH/bridge</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>BRIDGE_HOST</key>
+        <string>REPLACE_WITH_TAILSCALE_IP</string>
+        <key>BRIDGE_PORT</key>
+        <string>7777</string>
+        <key>BRIDGE_TOKEN</key>
+        <string>REPLACE_WITH_SECRET</string>
+        <key>SCRAPER_TOKEN</key>
+        <string>REPLACE_WITH_SCRAPER_TOKEN</string>
+    </dict>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ops-bridge.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ops-bridge.log</string>
+</dict>
+</plist>

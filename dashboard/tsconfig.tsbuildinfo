@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/components/header.tsx","./src/components/pipelinecard.tsx","./src/components/statusbadge.tsx","./src/hooks/usebackendhealth.ts","./src/hooks/usescraperhealth.ts","./src/hooks/usescraperruns.ts","./src/hooks/usestudiohealth.ts","./src/lib/api.ts"],"version":"5.9.3"}
