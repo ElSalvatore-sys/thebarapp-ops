@@ -2,6 +2,14 @@ import os
 import subprocess
 from pathlib import Path
 
+# Auto-load bridge/.env so the process works without shell env setup
+_env_file = Path(__file__).parent / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 import httpx
 from fastapi import FastAPI, HTTPException, Request  # HTTPException kept for scraper-runs 503
 from fastapi.responses import FileResponse
