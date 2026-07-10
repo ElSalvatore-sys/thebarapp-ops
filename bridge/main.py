@@ -1,6 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 # Auto-load bridge/.env so the process works without shell env setup
 _env_file = Path(__file__).parent / ".env"
@@ -30,7 +31,7 @@ KNOWN_AGENTS = [
 # Helpers                                                                      #
 # --------------------------------------------------------------------------- #
 
-async def _proxy_get(path: str, extra_headers: dict | None = None) -> dict:
+async def _proxy_get(path: str, extra_headers: Optional[dict] = None) -> dict:
     headers = extra_headers or {}
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
