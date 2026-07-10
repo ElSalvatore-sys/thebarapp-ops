@@ -14,11 +14,20 @@ function agentLabel(label: string): string {
   return label.replace('com.oasis.', '')
 }
 
-function agentLine(label: string, state: AgentState): string {
+// These LaunchAgents are SCHEDULED jobs (orderbird 02:00, ordio-hours 02:30 daily;
+// ordio-chrome-keeper every 30s). Between fires they are loaded + running:false +
+// exit_status:0 — which is HEALTHY, not degraded. A non-zero (and non-null) last
+// exit is the real failure signal.
+function agentFailed(state: AgentState | undefined): boolean {
+  return !!state && state.loaded && state.exit_status !== null && state.exit_status !== 0
+}
+
+function agentLine(label: string, state: AgentState | undefined): string {
   const short = agentLabel(label)
-  if (!state.loaded) return `${short}: not loaded`
+  if (!state?.loaded) return `${short}: not loaded`
   if (state.running) return `${short}: running (pid ${state.pid})`
-  return `${short}: loaded, not running (exit ${state.exit_status ?? '?'})`
+  if (state.exit_status === 0) return `${short}: idle — last run OK`
+  return `${short}: idle — last exit ${state.exit_status ?? '?'}`
 }
 
 export function orderbirdStudioStatus(d: StudioHealth | undefined): {
@@ -38,7 +47,7 @@ export function orderbirdStudioStatus(d: StudioHealth | undefined): {
   let status: CardStatus
   if (!chromeOk) {
     status = 'down'
-  } else if (!agent?.running) {
+  } else if (!agent?.loaded || agentFailed(agent)) {
     status = 'degraded'
   } else {
     status = 'up'
@@ -67,7 +76,7 @@ export function ordioStudioStatus(d: StudioHealth | undefined): {
   let status: CardStatus
   if (!chromeOk) {
     status = 'down'
-  } else if (!keeper?.running && !daily?.running) {
+  } else if (!keeper?.loaded || !daily?.loaded || agentFailed(keeper) || agentFailed(daily)) {
     status = 'degraded'
   } else {
     status = 'up'

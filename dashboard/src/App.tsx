@@ -1,9 +1,10 @@
 import Header from './components/Header'
 import PipelineCard from './components/PipelineCard'
 import { useBackendHealth } from './hooks/useBackendHealth'
-import { useScraperHealth, orderbirdStatus, ordioDataStatus } from './hooks/useScraperHealth'
+import { useScraperHealth, orderbirdStatus } from './hooks/useScraperHealth'
 import { useScraperRuns } from './hooks/useScraperRuns'
 import { useStudioHealth, orderbirdStudioStatus, ordioStudioStatus } from './hooks/useStudioHealth'
+import { useOrdioHours, ordioHoursStatus } from './hooks/useOrdioHours'
 import type { ScraperRun } from './types'
 
 function RunDots({ runs }: { runs: ScraperRun[] }) {
@@ -26,12 +27,13 @@ export default function App() {
   const scraperQuery = useScraperHealth()
   const runsData = useScraperRuns()
   const studioQuery = useStudioHealth()
+  const ordioHoursQuery = useOrdioHours()
 
   const scraperData = scraperQuery.data
   const studioData = studioQuery.data
 
   const { status: scraperStatus, lines: scraperLines } = orderbirdStatus(scraperData)
-  const { status: ordioDataSt, lines: ordioDataLines } = ordioDataStatus(scraperData)
+  const { status: ordioHoursSt, lines: ordioHoursLines } = ordioHoursStatus(ordioHoursQuery.data)
   const { status: obStudioSt, lines: obStudioLines } = orderbirdStudioStatus(studioData)
   const { status: ordioStudioSt, lines: ordioStudioLines } = ordioStudioStatus(studioData)
 
@@ -56,11 +58,11 @@ export default function App() {
             lines={scraperLines}
           />
 
-          {/* Card 3: Ordio Data (Hetzner — retired pipeline, informational) */}
+          {/* Card 3: Ordio Work-Hours (LIVE — Studio-local run.log, ordio-hours-daily) */}
           <PipelineCard
-            title="Ordio Data"
-            status={scraperQuery.isPending ? 'loading' : ordioDataSt}
-            lines={ordioDataLines}
+            title="Ordio Work-Hours"
+            status={ordioHoursQuery.isPending ? 'loading' : ordioHoursSt}
+            lines={ordioHoursLines}
           />
 
           {/* Card 4: Orderbird Studio (Chrome :9222 + LaunchAgent) */}

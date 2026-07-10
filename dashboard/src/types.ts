@@ -38,6 +38,16 @@ export interface ScraperRun {
   created_at: string
 }
 
+export interface OrdioHours {
+  pipeline: 'work-hours'
+  found: boolean
+  last_success_date?: string | null
+  last_scrape_date?: string | null
+  last_inserted?: number | null
+  days_since_success?: number | null
+  error?: string
+}
+
 export interface AgentState {
   loaded: boolean
   pid: string | null
