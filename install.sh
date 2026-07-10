@@ -33,27 +33,52 @@ if [ -z "$TAILSCALE_IP" ]; then
 fi
 echo "→ Tailscale IP: $TAILSCALE_IP"
 
-# Reuse existing .env if present
+# --- Validate any existing bridge/.env before reusing it -------------------
+# FAIL-OPEN GUARD: a partial/previous install can leave a bridge/.env with an
+# empty SCRAPER_TOKEN (the Hetzner fetch below silently failed), and the old
+# "reuse if present" logic would keep it forever — making the bridge return
+# 503 on /api/scraper-runs ("Scraper History: Load failed"). Only reuse a .env
+# that carries our project marker (BRIDGE_HOST) AND a non-empty SCRAPER_TOKEN.
+ENV_OK=0
 if [ -f "bridge/.env" ]; then
-  echo "→ Found existing bridge/.env — reusing (delete it to regenerate secrets)"
-  source bridge/.env
-else
+  if grep -q '^BRIDGE_HOST=' bridge/.env && grep -qE '^SCRAPER_TOKEN=.+' bridge/.env; then
+    ENV_OK=1
+    echo "→ Found valid bridge/.env (BRIDGE_HOST + non-empty SCRAPER_TOKEN) — reusing"
+  else
+    echo "⚠ Existing bridge/.env is incomplete (missing BRIDGE_HOST or empty SCRAPER_TOKEN) — regenerating"
+    cp bridge/.env "bridge/.env.rejected.$(date +%s)" 2>/dev/null || true
+  fi
+fi
+
+if [ "$ENV_OK" -ne 1 ]; then
   echo ""
   echo "→ Fetching SCRAPER_TOKEN from Hetzner..."
-  SCRAPER_TOKEN=$(ssh hetzner "sudo docker exec thebarapp-backend-1 env" 2>/dev/null | grep SCRAPER_TOKEN | cut -d= -f2 || echo "")
+  SCRAPER_TOKEN=$(ssh hetzner "sudo docker exec thebarapp-backend-1 env" 2>/dev/null | grep '^SCRAPER_TOKEN=' | cut -d= -f2 || echo "")
   if [ -z "$SCRAPER_TOKEN" ]; then
     read -p "Enter SCRAPER_TOKEN (from Hetzner backend .env): " SCRAPER_TOKEN
   else
     echo "→ SCRAPER_TOKEN fetched from Hetzner"
   fi
+  # Preserve/derive BRIDGE_TOKEN so it stays in sync with the frontend.
+  BRIDGE_TOKEN=$(grep -E '^BRIDGE_TOKEN=' bridge/.env 2>/dev/null | cut -d= -f2 || echo "")
+  if [ -z "$BRIDGE_TOKEN" ]; then
+    BRIDGE_TOKEN=$(grep -E '^VITE_BRIDGE_TOKEN=' dashboard/.env.production 2>/dev/null | cut -d= -f2 || echo "")
+  fi
 
   cat > bridge/.env << EOF
 BRIDGE_HOST=$TAILSCALE_IP
 BRIDGE_PORT=7777
+BRIDGE_TOKEN=$BRIDGE_TOKEN
 SCRAPER_TOKEN=$SCRAPER_TOKEN
 EOF
   chmod 600 bridge/.env
   echo "→ bridge/.env created"
+fi
+
+# Hard stop: never launch the bridge with an empty SCRAPER_TOKEN.
+if ! grep -qE '^SCRAPER_TOKEN=.+' bridge/.env; then
+  echo "✗ SCRAPER_TOKEN is empty in bridge/.env — /api/scraper-runs would 503. Aborting."
+  exit 1
 fi
 
 source bridge/.env

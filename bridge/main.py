@@ -1,5 +1,7 @@
 import os
+import re
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +28,11 @@ KNOWN_AGENTS = [
     "com.oasis.ordio-chrome-keeper",
     "com.oasis.ordio-hours-daily",
 ]
+
+# The LIVE Ordio pipeline is the daily work-hours scraper (com.oasis.ordio-hours-daily).
+# Its ground truth is a local run.log, NOT the backend /pp/scraper record (which only
+# tracks the retired Ordio *revenue* leg, where ordio_success is always null).
+ORDIO_LOG = Path.home() / "ordio-scraper" / "run.log"
 
 # --------------------------------------------------------------------------- #
 # Helpers                                                                      #
@@ -73,6 +80,52 @@ def _agent_state(label: str) -> dict:
     return {"loaded": False, "pid": None, "running": False, "exit_status": None}
 
 
+def _ordio_hours_state() -> dict:
+    """Studio-local truth for the LIVE Ordio work-hours pipeline.
+
+    Parses ordio-scraper/run.log for the most recent successful daily run:
+      <ts> [scrape] <date> ok -> ...xlsx
+      <ts> [import] <date> inserted=<N> unresolved=<M>
+      <ts> [done]   <date> ok
+    """
+    try:
+        if not ORDIO_LOG.exists():
+            return {"pipeline": "work-hours", "found": False}
+
+        last_done_date = None
+        last_inserted = None
+        last_scrape_date = None
+        for line in ORDIO_LOG.read_text(errors="replace").splitlines():
+            m = re.search(r"\[done\]\s+(\d{4}-\d{2}-\d{2})\s+ok", line)
+            if m:
+                last_done_date = m.group(1)
+            m = re.search(r"\[import\]\s+\S+\s+inserted=(\d+)", line)
+            if m:
+                last_inserted = int(m.group(1))
+            m = re.search(r"\[scrape\]\s+(\d{4}-\d{2}-\d{2})\s+ok", line)
+            if m:
+                last_scrape_date = m.group(1)
+
+        days_since = None
+        if last_done_date:
+            try:
+                d = datetime.strptime(last_done_date, "%Y-%m-%d").date()
+                days_since = (datetime.now(timezone.utc).date() - d).days
+            except ValueError:
+                pass
+
+        return {
+            "pipeline": "work-hours",
+            "found": True,
+            "last_success_date": last_done_date,
+            "last_scrape_date": last_scrape_date,
+            "last_inserted": last_inserted,
+            "days_since_success": days_since,
+        }
+    except Exception as e:
+        return {"pipeline": "work-hours", "found": False, "error": str(e)}
+
+
 # --------------------------------------------------------------------------- #
 # API routes                                                                   #
 # --------------------------------------------------------------------------- #
@@ -114,6 +167,12 @@ async def studio_health():
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/api/ordio-hours")
+async def ordio_hours():
+    """Studio-local status of the LIVE Ordio work-hours pipeline (run.log)."""
+    return _ordio_hours_state()
 
 
 # --------------------------------------------------------------------------- #

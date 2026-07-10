@@ -1,5 +1,9 @@
 node_modules/
 .env
+# Frontend build-time secrets (VITE_BRIDGE_TOKEN) — the built dist/ is the committed
+# artifact; this file must never be committed.
+dashboard/.env.production
+dashboard/.env.local
 __pycache__/
 *.pyc
 .venv/
